@@ -45,7 +45,7 @@ class Config(BaseSettings):
     root_agent_settings: AgentModel = Field(
         default=AgentModel(name="maintenance_scheduler",
                            description="Bus maintenance scheduler",
-                           model="gemini-2.5-pro"))
+                           model="gemini-2.5-flash"))
     email_generator_agent_settings: AgentModel = Field(
         default=AgentModel(name="email_notification_generator",
                            description="Email content generator",
@@ -67,11 +67,14 @@ class Config(BaseSettings):
     show_thoughts: bool = Field(
         default=True,
         description="Show model's thoughts")
+    show_insights: bool = Field(
+        default=True,
+        description="Show insights like tools or SQL used")
     #Conversational analtyics API configuration 
-    CA_API_AGENT_ID: str = Field(default="data_agent_ca_bigquery")
+    CA_API_AGENT_ID: str = Field(default="bus_stop_agent")
     BQ_DATASET: str = Field(default="bus_stop_image_processing")  
     use_mcp_toolbox: bool = Field(
-        default=True,
+        default=False,
         description="Indicates if the MCP server should be used instead of the local tools"
     )
     mcp_toolbox_uri: str = Field(default="http://127.0.0.1:5000", description="URI of the MCP server" )

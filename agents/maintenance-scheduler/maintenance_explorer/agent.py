@@ -19,6 +19,7 @@ import os
 from google.adk.agents import Agent
 from google.adk.agents.callback_context import CallbackContext
 from google.genai import types
+from google.adk.tools.load_artifacts_tool import load_artifacts_tool
 
 from .tools import tools
 from google.cloud import geminidataanalytics
@@ -39,6 +40,10 @@ logger = logging.getLogger(__name__)
 
 configs = Config()
 
+
+
+
+
 def add_tables(table_names:[],bq_dataset_id:str,billing_project:str) -> None: 
     bigquery_table_references=[]
     for table_name in table_names:
@@ -50,7 +55,7 @@ def add_tables(table_names:[],bq_dataset_id:str,billing_project:str) -> None:
     return bigquery_table_references
 
 
-def create_ca_agent(parent_agent_name:str,agent_id:str,agent_name:str, billing_project:str)-> None:
+def create_ca_agent(parent_agent_name:str,agent_id:str,agent_name:str, billing_project:str)-> bool:
     # Make the request to see if the agents and conversation were created if not create them
     try:
         data_agent_client = geminidataanalytics.DataAgentServiceClient()
@@ -98,14 +103,18 @@ def create_ca_agent(parent_agent_name:str,agent_id:str,agent_name:str, billing_p
             
             data_agent_client.create_data_agent(request=request)
             logger.info(f"Data Agent created: {agent_name}")
+            
+        return True
     except Exception as e:
         logger.error(f"Error creating Data Agent: %s", str(e))
+    return False
 
 
 
-def create_ca_conversation(agent_name:str,parent_agent_name:str,conversation_name:str,conversation_id) -> None:
+def create_ca_conversation(agent_name:str,parent_agent_name:str,conversation_name:str,conversation_id) -> bool:
 
     try:
+        
          #create now the conversation
         conversation = geminidataanalytics.Conversation()
         data_chat_client = geminidataanalytics.DataChatServiceClient()
@@ -120,18 +129,26 @@ def create_ca_conversation(agent_name:str,parent_agent_name:str,conversation_nam
         # Make the request to create the conversation
         response = data_chat_client.create_conversation(request=request)
         logger.info("Conversation created: %s", str(response))
+        return True
     except Exception as e:
         logger.error(f"Error creating Data Agent: %s", str(e))
+    return False
 
         
 
 def setup_before_agent_call(callback_context: CallbackContext) -> None:
     """Setup the agent and conversation """
-    if "conversation_name" not in callback_context.state:
+    if "agent_initialised" not in callback_context.state :
+        session = callback_context._invocation_context.session
+        # Get the User ID
+        user_id = session.user_id 
+        # Get the Session ID
+        session_id = session.id 
+
         billing_project =configs.CLOUD_PROJECT
         data_agent_id = configs.CA_API_AGENT_ID 
 
-        conversation_id = callback_context.invocation_id
+        conversation_id = session_id 
         callback_context.state["conversation_id"] = conversation_id
         conversation_name =  f"projects/{billing_project}/locations/global/conversations/{conversation_id}"
         callback_context.state["conversation_name"] =conversation_name
@@ -143,15 +160,18 @@ def setup_before_agent_call(callback_context: CallbackContext) -> None:
         callback_context.state["agent_parent"] = parent_agent_name
         callback_context.state["agent_name"] =  agent_name
 
-        create_ca_agent(parent_agent_name,data_agent_id, agent_name,billing_project)
+        agent_initialised = create_ca_agent(parent_agent_name,data_agent_id, agent_name,billing_project)
+        
+        conversation_initialised = create_ca_conversation(agent_name,parent_agent_name,conversation_name,conversation_id)
 
-        create_ca_conversation(agent_name,parent_agent_name,conversation_name,conversation_id)
+        callback_context.state["agent_initialised"] = agent_initialised and conversation_initialised 
 
 
 tools = [ask_lakehouse,
             get_image_from_bucket,
             analytics_chart_tool,
-            get_external_url_image,]
+            get_external_url_image,
+            load_artifacts_tool,]
 
 if configs.use_mcp_toolbox:
     if not configs.mcp_toolbox_uri:
