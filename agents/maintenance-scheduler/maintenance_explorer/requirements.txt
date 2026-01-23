@@ -2,3 +2,8 @@ google-cloud-geminidataanalytics
 altair
 vl-convert-python
 ipython
+vertexai
+google-adk
+tzdata
+toolbox-core
+matplotlib

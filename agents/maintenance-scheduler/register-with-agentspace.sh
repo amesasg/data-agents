@@ -21,8 +21,8 @@ set -u
 
 source .env
 
-display_name="Bus Stop Maintenance Scheduler"
-description="Agent to help with bus stop maintenance scheduling"
+display_name="Bus Stop Maintenance Explorer ES"
+description="Agent to help with bus stop maintenance status"
 tool_description="Bus stop maintenance scheduler tool. It looks at the existing open bus stop incidents, prioritizes them and notifies the maintenance crew."
 icon_uri="https://fonts.gstatic.com/s/i/short-term/release/googlesymbols/schedule_send/default/24px.svg"
 
@@ -46,12 +46,11 @@ EOF
 
 echo "Data to post:"
 cat ${payload}
-
 GOOGLE_CLOUD_PROJECT_NUMBER=$(gcloud projects describe ${GOOGLE_CLOUD_PROJECT} --format="value(projectNumber)")
+echo "https://discoveryengine.googleapis.com/v1alpha/projects/${GOOGLE_CLOUD_PROJECT_NUMBER}/locations/global/collections/default_collection/engines/${AGENTSPACE_APP_ID}/assistants/default_assistant/agents -d "@${payload}""
 
 curl -X POST -H "Authorization: Bearer $(gcloud auth print-access-token)" \
 -H "Content-Type: application/json" \
 -H "x-goog-user-project: ${GOOGLE_CLOUD_PROJECT}" \
 https://discoveryengine.googleapis.com/v1alpha/projects/${GOOGLE_CLOUD_PROJECT_NUMBER}/locations/global/collections/default_collection/engines/${AGENTSPACE_APP_ID}/assistants/default_assistant/agents -d "@${payload}"
 
-rm "${payload}"

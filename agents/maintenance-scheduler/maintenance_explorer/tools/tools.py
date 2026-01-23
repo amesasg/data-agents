@@ -23,8 +23,9 @@ data_chat_client = geminidataanalytics.DataChatServiceClient()
 configs = Config()
 
 
+
 # Define the ADK Function Tool (Must be async since client.chat streams)
-async def query_and_save_chart(
+async def analytics_chart_tool(
     question: str,
     tool_context: ToolContext
 ) -> Dict[str, Any]:
@@ -118,14 +119,15 @@ async def query_and_save_chart(
         logger.error(f"An error occurred during chart processing: {e}")
         return {"status": "exception", "error": f"An error occurred during chart processing: {e}"}
 
-# Final ADK Function Tool definition
-analytics_chart_tool = FunctionTool(func=query_and_save_chart)
+# # Final ADK Function Tool definition
+# analytics_chart_tool = FunctionTool(func=query_and_save_chart)
 
 
 async def  ask_lakehouse(
     question: str,
     tool_context: ToolContext,
 ) -> str:
+
     
     messages = [geminidataanalytics.Message()]
     messages[0].user_message.text = question
@@ -160,7 +162,7 @@ async def  ask_lakehouse(
 # Initialize GCS client (Authenticates using Application Default Credentials)
 gcs_client = storage.Client()
 
-async def save_image_from_gcs(
+async def get_image_from_bucket(
     gs_uri: str, 
     tool_context: ToolContext ) -> dict:
     """
@@ -183,7 +185,6 @@ async def save_image_from_gcs(
         file_name= os.path.basename(gs_uri)
         gcs_bucket = gcs_client.bucket(bucket_name)
         gcs_blob = gcs_bucket.blob(image_name)
-
         if not gcs_blob.exists():
             return {
                 "status": "error",
@@ -197,7 +198,7 @@ async def save_image_from_gcs(
         # 2. Create a types.Part object for the artifact
         image_artifact_part = types.Part.from_bytes(
             data=image_bytes,
-            mime_type="image/jpg"
+            mime_type="image/jpeg"
         )
 
         # 3. Save the Part to the ADK Artifact Service
@@ -206,7 +207,8 @@ async def save_image_from_gcs(
             filename=file_name,
             artifact=image_artifact_part
         )
-        
+        return f"Artifact saved successfully with filename {file_name}"    
+
         # 4. Construct a response that the agent can use to show the image
         return {
             "status": "success",
@@ -221,12 +223,14 @@ async def save_image_from_gcs(
             "message": f"An unexpected error occurred: {e}"
         }
 
-get_image_from_bucket = FunctionTool(
-    save_image_from_gcs,
-    #description="Loads a property image from a Google Cloud Storage bucket and saves it as an artifact for display."
-)
+# get_image_from_bucket = FunctionTool(
+#     save_image_from_gcs,
+#     #description="Loads a property image from a Google Cloud Storage bucket and saves it as an artifact for display."
+# )
+
 
 def get_external_url_image( gs_uri: str) -> str:
+
         """
         Retrieves the public URL of an image from a Google Cloud Storage bucket.
 
@@ -252,3 +256,107 @@ def get_external_url_image( gs_uri: str) -> str:
             return https_url
         except Exception as e:
             return f"An error occurred while retrieving the image from GCS: {e}"
+
+import matplotlib.pyplot as plt
+from datetime import datetime
+import io
+
+# # Placeholder for your ADK's artifact saving function
+# # In a real ADK environment, this function would handle
+# # saving the file and returning a displayable path/URL.
+# # For this example, we'll just save it locally.
+# def save_artifact(file_content, filename="passenger_plot.png"):
+#     """
+#     Placeholder for saving the plot to the agent's artifact storage.
+
+#     In a real ADK, this might upload the data and return a URL.
+#     Here, it just saves to the local filesystem.
+#     """
+#     try:
+#         with open(filename, 'wb') as f:
+#             f.write(file_content)
+#         print(f"Plot saved successfully to {filename}")
+#         # Return the filename or a URL/path for display
+#         return filename
+#     except Exception as e:
+#         print(f"Error saving artifact: {e}")
+#         return None
+
+
+# async def plot_passenger_data(data_string: str,tool_context: ToolContext) -> dict:
+#     """
+#     Parses passenger data, plots the number of passengers over time,
+#     and saves the plot as an artifact.
+
+#     Args:
+#         data_string: A string containing time and passenger data,
+#                      e.g., "09/29/2025 21:49: 3 passengers\n..."
+
+#     Returns:
+#         A string message containing the path/filename of the saved plot.
+#     """
+#     try:
+#         lines = data_string.strip().split('\n')
+#         times = []
+#         passengers = []
+
+#         # 1. Parse the Data
+#         for line in lines:
+#             if not line.strip():
+#                 continue
+#             try:
+#                 # Split at the colon to separate time/date from passenger info
+#                 time_str, passenger_info = line.split(': ', 1)
+                
+#                 # Parse the time string
+#                 dt_obj = datetime.strptime(time_str.strip(), '%m/%d/%Y %H:%M')
+#                 times.append(dt_obj)
+
+#                 # Extract the number of passengers (assuming format 'X passengers')
+#                 count_str = passenger_info.strip().split(' ')[0]
+#                 passengers.append(int(count_str))
+#             except ValueError as e:
+#                 # Handle lines that don't match the expected format
+#                 print(f"Skipping malformed line: '{line}'. Error: {e}")
+#                 continue
+
+#         if not times:
+#             return "Error: Could not parse any valid data points from the input."
+
+#         # 2. Create the Plot
+#         plt.figure(figsize=(10, 6))
+#         plt.plot(times, passengers, marker='o', linestyle='-', color='indigo')
+
+#         # Add labels and title
+#         plt.title('Passenger Count Over Time', fontsize=16)
+#         plt.xlabel('Time', fontsize=12)
+#         plt.ylabel('Number of Passengers', fontsize=12)
+        
+#         # Format x-axis to show time clearly
+#         plt.gcf().autofmt_xdate() # Auto-formats date labels for better readability
+#         plt.grid(True, linestyle='--', alpha=0.7)
+#         plt.tight_layout() # Adjust plot to fit all labels
+
+#         # 3. Save the Plot to a buffer and then to artifact storage
+#         # Use a BytesIO object to save the figure without writing to a temp file first
+#         buf = io.BytesIO()
+#         plt.savefig(buf, format='png')
+#         plt.close() # Close the figure to free memory
+
+#         # Save the buffer content as an artifact
+#         #artifact_path = save_artifact(buf.getvalue(), "passenger_count_plot.png")
+#         file_name= "passenger_count_plot.png"
+#         version = await tool_context.save_artifact(
+#             filename= file_name,
+#             artifact= plt
+#         )
+#                 # 4. Construct a response that the agent can use to show the image
+#         return {
+#             "status": "success",
+#             "message": f"Image '{file_name}' saved to Artifact Service (Version {version}).",
+#             "image_filename": file_name # This name will be displayed in the UI
+#         }
+       
+#     except Exception as e:
+#         return f"An unexpected error occurred during plotting: {e}"
+

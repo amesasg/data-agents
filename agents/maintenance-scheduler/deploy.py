@@ -82,10 +82,8 @@ else:
         app,
         display_name="Bus Maintenance Scheduler v1.0",
         description="Agent to assist with bus maintenance scheduling",
-        requirements=[
-            AGENT_WHL_FILE,
-        ],
-        extra_packages=[AGENT_WHL_FILE],
+        requirements="./maintenance_explorer/requirements.txt",
+        extra_packages=["."],
     )
 
     user_id = "user"

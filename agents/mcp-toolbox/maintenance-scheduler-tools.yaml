@@ -96,3 +96,4 @@ tools:
 toolsets:
  forecast_passangers:
    - get-expected-number-of-passengers
+   - schedule-maintenance
